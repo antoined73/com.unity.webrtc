@@ -245,6 +245,7 @@ extern "C"
     UNITY_INTERFACE_EXPORT bool GetCodecCapabilities(Codec codec, int32_t caps, int32_t* value)
     {
 #if !CUDA_PLATFORM
+        DebugLog("CUDA is not supported");
         return false;
 #else
         IGraphicsDevice* device = GraphicsUtility::GetGraphicsDevice();
@@ -255,6 +256,8 @@ extern "C"
             return false;
         if (!NvEncoder::DestroyEncoder(pEncoder))
             return false;
+
+        DebugLog("Succeed GetCodecCapabilities");
         return true;
 #endif
     }

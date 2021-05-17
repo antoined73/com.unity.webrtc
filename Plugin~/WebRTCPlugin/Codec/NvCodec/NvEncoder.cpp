@@ -164,7 +164,10 @@ namespace webrtc
         if (!pNvEncodeAPI)
             LoadCodec();
         if(!NV_RESULT(pNvEncodeAPI->nvEncOpenEncodeSessionEx(&openEncodeSessionExParams, pEncoder)))
+        {
+            DebugLog("Failed nvEncOpenEncodeSessionEx");
             return false;
+        }
         return true;
     }
 
@@ -173,7 +176,10 @@ namespace webrtc
         if (pEncoder != nullptr)
         {
             if (!NV_RESULT(pNvEncodeAPI->nvEncDestroyEncoder(pEncoder)))
+            {
+                DebugLog("Failed nvEncDestroyEncoder");
                 return false;
+            }
         }
         return true;
     }
@@ -181,9 +187,12 @@ namespace webrtc
     bool NvEncoder::GetCapabilityValue(void* pEncoder, Codec codec, int32_t capsToQuery, int32_t* value)
     {
         if (pEncoder == nullptr)
+        {
+            DebugLog("pEncoder is null");
             return false;
+        }
 
-        GUID guidCodec;
+        GUID guidCodec = {};
         switch(codec)
         {
             case Codec::H264:
@@ -197,7 +206,10 @@ namespace webrtc
         NV_ENC_CAPS_PARAM capsParam = { NV_ENC_CAPS_PARAM_VER };
         capsParam.capsToQuery = static_cast<NV_ENC_CAPS>(capsToQuery);
         if (!NV_RESULT(pNvEncodeAPI->nvEncGetEncodeCaps(pEncoder, guidCodec, &capsParam, value)))
+        {
+            DebugLog("Failed nvEncGetEncodeCaps");
             return false;
+        }
         return true;
     }
 
