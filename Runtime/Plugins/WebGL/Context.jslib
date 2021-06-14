@@ -84,7 +84,7 @@ var UnityWebRTCContext = {
   ContextCreateDataChannel: function (contextPtr, peerPtr, labelPtr, optionsJsonPtr) {
     if (!uwcom_existsCheck(contextPtr, 'ContextCreateDataChannel', 'context')) return;
     if (!uwcom_existsCheck(peerPtr, 'ContextCreateDataChannel', 'peer')) return;
-    return CreateDataChannel(labelPtr, optionsJsonPtr);
+    return _CreateDataChannel(peerPtr, labelPtr, optionsJsonPtr);
   },
 
   ContextDeleteDataChannel: function (contextPtr, dataChannelPtr) {
@@ -107,7 +107,11 @@ var UnityWebRTCContext = {
   ContextRegisterMediaStreamObserver: function (contextPtr, streamPtr) {
     
   },
+    
+  ContextUnRegisterMediaStreamObserver: function (contextPtr, streamPtr) {
 
+  },
+    
   MediaStreamRegisterOnAddTrack: function (contextPtr, streamPtr, MediaStreamOnAddTrack) {
     if (!uwcom_existsCheck(contextPtr, 'MediaStreamRegisterOnAddTrack', 'context')) return;
     if (!uwcom_existsCheck(streamPtr, 'MediaStreamRegisterOnAddTrack', 'stream')) return;

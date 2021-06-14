@@ -1,10 +1,11 @@
 var UnityWebRTCDataChannel = {
-  CreateDataChannel: function() {
+    
+  CreateDataChannel: function(peerPtr, labelPtr, optionsJsonPtr) {
     var peer = UWManaged[peerPtr];
     var label = Pointer_stringify(labelPtr);
     var optionsJson = Pointer_stringify(optionsJsonPtr);
     var options = JSON.parse(optionsJson);
-    var dataChannel = peer.CreateDataChannel(label, options);
+    var dataChannel = peer.createDataChannel(label, options);
     dataChannel.onmessage = function (evt) {
       if (typeof evt.data === 'string') {
         var msgPtr = uwcom_strToPtr(evt.data);
@@ -14,7 +15,6 @@ var UnityWebRTCDataChannel = {
         Module.dynCall_vii(uwevt_DCOnBinaryMessage, this.managePtr, msgPtr);
       }
     };
-    var dataChannel = peer.createDataChannel();
     dataChannel.onopen = function (evt) {
       Module.dynCall_vi(uwevt_DCOnOpen, this.managePtr);
     };
@@ -78,9 +78,7 @@ var UnityWebRTCDataChannel = {
   DataChannelGetReadyState: function (dataChannelPtr) {
     if (!uwcom_existsCheck(dataChannelPtr, 'DataChannelGetReadyState', 'dataChannel')) return;
     var dataChannel = UWManaged[dataChannelPtr];
-    var pc = new RTCPeerConnection();
-    var dc = pc.createDataChannel();
-    var readyStateIdx = UWRTCDataChannelState.indexOf(dc.readyState);
+    var readyStateIdx = UWRTCDataChannelState.indexOf(dataChannel.readyState);
     return readyStateIdx;
   },
 
@@ -94,12 +92,12 @@ var UnityWebRTCDataChannel = {
     uwevt_DCOnTextMessage = DataChannelNativeOnTextMessage;
   },
 
-  DataChannelRegisterOnOpen: function (dataChannel, DataChannelNativeOnOpen) {
+  DataChannelRegisterOnOpen: function (dataChannelPtr, DataChannelNativeOnOpen) {
     if (!uwcom_existsCheck(dataChannelPtr, 'DataChannelRegisterOnOpen', 'dataChannel')) return;
     uwevt_DCOnOpen = DataChannelNativeOnOpen;
   },
-
-  DataChannelRegisterOnClose: function (dataChannel, DataChannelNativeOnClose) {
+    
+  DataChannelRegisterOnClose: function (dataChannelPtr, DataChannelNativeOnClose) {
     if (!uwcom_existsCheck(dataChannelPtr, 'DataChannelRegisterOnClose', 'dataChannel')) return;
     uwevt_DCOnClose = DataChannelNativeOnClose;
   },
