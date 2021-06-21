@@ -47,6 +47,12 @@ class VideoReceiveSample : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (webCamTexture != null)
+        {
+            webCamTexture.Stop();
+            webCamTexture = null;
+        }
+
         WebRTC.Dispose();
     }
 
@@ -225,7 +231,7 @@ class VideoReceiveSample : MonoBehaviour
         webCamTexture.Play();
         yield return new WaitUntil(() => webCamTexture.didUpdateThisFrame);
 
-        videoStreamTrack = new VideoStreamTrack("video", webCamTexture);
+        videoStreamTrack = new VideoStreamTrack(webCamTexture);
         sourceImage.texture = webCamTexture;
     }
 
