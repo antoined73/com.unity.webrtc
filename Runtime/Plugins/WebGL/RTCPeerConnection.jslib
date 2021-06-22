@@ -50,6 +50,21 @@ var UnityWebRTCPeerConnection = {
     peer.ondatachannel = function (evt) {
       uwcom_debugLog('log', 'RTCPeerConnection.jslib', 'ondatachannel', this.label + ':' + evt.channel.label);
       var channel = evt.channel;
+      channel.onmessage = (function(evt) {
+        if (typeof evt.data === "string") {
+          var msgPtr = uwcom_strToPtr(evt.data);
+          Module.dynCall_vii(uwevt_DCOnTextMessage, channel.managePtr, msgPtr);
+        } else {
+          var msgPtr = uwcom_arrayToReturnPtr(evt.data, Uint8Array);
+          Module.dynCall_vii(uwevt_DCOnBinaryMessage, channel.managePtr, msgPtr);
+        }
+      });
+      channel.onopen = function (evt) {
+        Module.dynCall_vi(uwevt_DCOnOpen, this.managePtr);
+      };
+      channel.onclose = function (evt) {
+        Module.dynCall_vi(uwevt_DCOnClose, this.managePtr);
+      };
       uwcom_addManageObj(channel);
       Module.dynCall_vii(uwevt_PCOnDataChannel, this.managePtr, channel.managePtr);
     };
@@ -357,15 +372,20 @@ var UnityWebRTCPeerConnection = {
     if (!uwcom_existsCheck(peerPtr, 'PeerConnectionAddIceCandidate', 'peer')) return;
     if (!uwcom_existsCheck(candidatePtr, 'PeerConnectionAddIceCandidate', 'candidate')) return;
     var peer = UWManaged[peerPtr];
-    try {
       var candidate = UWManaged[candidatePtr];
       uwcom_debugLog('log', 'RTCPeerConnection.jslib', 'PeerConnectionAddIceCandidate', peer.label + ':' + JSON.stringify(candidate));
-      peer.addIceCandidate(candidate);
+      
+      // TEMP: Use timeout so we have a higher chance that the description is set before the first candidate arrives
+      // Timing bug: Often we icecandidate is received earlier than the description, and it's not possible to set an ice candiate without a description on the peer server
+      // Possible solution: Put icecandidates on a queue if the description is not set, and handle the queue when the description is set.
+      setTimeout(function(){
+        peer.addIceCandidate(candidate)
+          .then(function(){console.log("Added ice")})
+          .catch(function(){console.error(err.message, peerPtr)});
+      }, 1000);
+      
+      // TODO: Fix async return value
       return true;
-    } catch (err) {
-      uwcom_debugLog('error', 'RTCPeerConnection.jslib', 'PeerConnectionAddIceCandidate', peer.label + ':' + err.message);
-      return false;
-    }
   },
 
   PeerConnectionCreateOffer: function (peerPtr, iceRestart, voiceActivityDetection) {

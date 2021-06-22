@@ -1,11 +1,20 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Unity.WebRTC
 {
     public delegate void DelegateOnAddTrack(MediaStreamTrackEvent e);
     public delegate void DelegateOnRemoveTrack(MediaStreamTrackEvent e);
+
+#if UNITY_WEBGL
+    public class MediaStreamConstraints
+    {
+        public bool audio = true;
+        public bool video = true;
+    }
+#endif
 
     public class MediaStream : IDisposable
     {
@@ -14,6 +23,13 @@ namespace Unity.WebRTC
 
         private IntPtr self;
         private bool disposed;
+
+#if UNITY_WEBGL
+        public void AddUserMedia(MediaStreamConstraints constraints)
+        {
+            NativeMethods.MediaStreamAddUserMedia(self, JsonUtility.ToJson(constraints));
+        }
+#endif
 
         /// <summary>
         /// 
@@ -63,15 +79,7 @@ namespace Unity.WebRTC
 
         private void StopTrack(MediaStreamTrack track)
         {
-
-            if (track.Kind == TrackKind.Video)
-            {
-                WebRTC.Context.StopMediaStreamTrack(track.GetSelfOrThrow());
-            }
-            else
-            {
-                Audio.Stop();
-            }
+            WebRTC.Context.StopMediaStreamTrack(track.GetSelfOrThrow());
         }
 
         public IEnumerable<VideoStreamTrack> GetVideoTracks()
