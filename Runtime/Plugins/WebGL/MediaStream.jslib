@@ -58,6 +58,7 @@ var UnityWebRTCMediaStream = {
 
   MediaStreamGetVideoTracks: function (streamPtr) {
     if (!uwcom_existsCheck(streamPtr, 'MediaStreamGetVideoTracks', 'stream')) return;
+    var stream = UWManaged[streamPtr];
     var tracks = stream.getVideoTracks();
     var ptrs = [];
     tracks.forEach(function (track) {
@@ -70,6 +71,7 @@ var UnityWebRTCMediaStream = {
 
   MediaStreamGetAudioTracks: function (streamPtr) {
     if (!uwcom_existsCheck(streamPtr, 'MediaStreamGetAudioTracks', 'stream')) return;
+    var stream = UWManaged[streamPtr];
     var tracks = stream.getAudioTracks();
     var ptrs = [];
     tracks.forEach(function (track) {
@@ -101,9 +103,13 @@ var UnityWebRTCMediaStream = {
       video.style.left = video.style.top = 0;
       uwcom_remoteVideoTracks[track.managePtr] = {
         track: track,
-        video: video
+        video: video,
+        playing: false
       };
-      video.play(); 
+      video.onplaying = function(){
+        uwcom_remoteVideoTracks[track.managePtr].playing = true;
+      }
+      video.play();
       Module.dynCall_vii(uwevt_MSOnAddTrack, stream.managePtr, track.managePtr);
       return true;
     } catch (err) {
