@@ -11,7 +11,7 @@ var UnityWebRTCAudioStreamTrack = {
     return audioTrack.managePtr;
   },
 
-  ProcessAudio: function (data, size) {
+  ProcessAudio: function (trackPtr, arrayPtr, sampleRate, channels, frames) {
     // TODO
   }
 };

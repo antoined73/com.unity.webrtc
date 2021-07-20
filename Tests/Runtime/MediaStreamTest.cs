@@ -174,6 +174,7 @@ namespace Unity.WebRTC.RuntimeTest
                 track.Dispose();
             }
             audioStream.Dispose();
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
@@ -201,12 +202,16 @@ namespace Unity.WebRTC.RuntimeTest
 
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
         [Timeout(5000)]
         public IEnumerator SenderGetStats()
         {
+            if (SystemInfo.processorType == "Apple M1")
+                Assert.Ignore("todo:: This test will hang up on Apple M1");
+
             var camObj = new GameObject("Camera");
             var cam = camObj.AddComponent<Camera>();
             var videoStream = cam.CaptureStream(1280, 720, 1000000);
@@ -245,6 +250,7 @@ namespace Unity.WebRTC.RuntimeTest
 
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
@@ -287,6 +293,7 @@ namespace Unity.WebRTC.RuntimeTest
 
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
@@ -329,6 +336,7 @@ namespace Unity.WebRTC.RuntimeTest
 
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         // todo::(kazuki) Test execution timed out on linux standalone
@@ -389,6 +397,7 @@ namespace Unity.WebRTC.RuntimeTest
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
             Object.DestroyImmediate(rt);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
@@ -417,6 +426,7 @@ namespace Unity.WebRTC.RuntimeTest
             }
 
             stream.Dispose();
+            Object.DestroyImmediate(test.gameObject);
         }
     }
 }

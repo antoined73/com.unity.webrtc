@@ -366,7 +366,7 @@ namespace Unity.WebRTC
 
 
 #if UNITY_EDITOR
-        static public void OnBeforeAssemblyReload()
+        public static void OnBeforeAssemblyReload()
         {
             Dispose();
         }
@@ -379,6 +379,9 @@ namespace Unity.WebRTC
         /// <param name="limitTextureSize"></param>
         public static void Initialize(EncoderType type = EncoderType.Hardware, bool limitTextureSize = true)
         {
+            if (s_context != null)
+                throw new InvalidOperationException("Already initialized WebRTC.");
+
             Initialize(type, limitTextureSize, false);
         }
 
@@ -444,20 +447,17 @@ namespace Unity.WebRTC
                 // Wait until all frame rendering is done
                 yield return new WaitForEndOfFrame();
                 {
-                    lock (VideoStreamTrack.s_lockTracks)
+                    foreach (var reference in VideoStreamTrack.s_tracks.Values)
                     {
-                        foreach (var reference in VideoStreamTrack.s_tracks.Values)
+                        if (!reference.TryGetTarget(out var track))
+                            continue;
+                        if (track.IsEncoderInitialized)
                         {
-                            if (!reference.TryGetTarget(out var track))
-                                continue;
-                            if (track.IsEncoderInitialized)
-                            {
-                                track.Update();
-                            }
-                            else if (track.IsDecoderInitialized)
-                            {
-                                track.UpdateReceiveTexture();
-                            }
+                            track.Update();
+                        }
+                        else if (track.IsDecoderInitialized)
+                        {
+                            track.UpdateReceiveTexture();
                         }
                     }
                 }
@@ -1270,7 +1270,7 @@ namespace Unity.WebRTC
         public static extern IntPtr GetUpdateTextureFunc(IntPtr context);
 #endif
         [DllImport(WebRTC.Lib)]
-        public static extern void ProcessAudio(IntPtr track, float[] data, int sampleRate, int channels, int frames);
+        public static extern void ProcessAudio(IntPtr track, IntPtr array, int sampleRate, int channels, int frames);
 
 #if !UNITY_WEBGL
         [DllImport(WebRTC.Lib)]
