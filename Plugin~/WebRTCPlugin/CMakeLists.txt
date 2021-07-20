@@ -10,6 +10,8 @@ target_sources(WebRTCLib
     DummyAudioDevice.h
     DummyVideoEncoder.cpp
     DummyVideoEncoder.h
+    AudioTrackSinkAdapter.h
+    AudioTrackSinkAdapter.cpp
     Logger.cpp
     MediaStreamObserver.cpp
     MediaStreamObserver.h
@@ -33,6 +35,10 @@ target_sources(WebRTCLib
     UnityVideoRenderer.h
     UnityVideoTrackSource.cpp
     UnityVideoTrackSource.h
+    UnityAudioDecoderFactory.cpp
+    UnityAudioDecoderFactory.h
+    UnityAudioEncoderFactory.cpp
+    UnityAudioEncoderFactory.h
     UnityAudioTrackSource.cpp
     UnityAudioTrackSource.h
     WebRTCConstants.h
@@ -123,7 +129,7 @@ elseif(macOS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-lto -fno-rtti")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -x objective-c++")
   set(PROJECT_BINARY_DIR
-    "${CMAKE_SOURCE_DIR}/../Runtime/Plugins/x86_64")
+    "${CMAKE_SOURCE_DIR}/../Runtime/Plugins/macOS")
 
   target_compile_definitions(WebRTCLib
     PUBLIC

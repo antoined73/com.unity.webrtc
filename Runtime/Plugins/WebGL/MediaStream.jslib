@@ -28,14 +28,16 @@ var UnityWebRTCMediaStream = {
     var optionsJson = Pointer_stringify(constraints);
     var options = JSON.parse(optionsJson);
     
-    navigator.mediaDevices.getUserMedia(options).then(function(stream2){
-      stream2.getTracks().forEach(function(track){
-        uwcom_addManageObj(track);
-        _MediaStreamAddTrack(stream.managePtr, track.managePtr);
+    navigator.mediaDevices.getUserMedia(options)
+      .then(function(usermedia){
+        usermedia.getTracks().forEach(function(track){
+          uwcom_addManageObj(track);
+          _MediaStreamAddTrack(stream.managePtr, track.managePtr);
+        })
       })
-    }).catch(function(err) {
-      console.error(err);
-    });
+      .catch(function(err) {
+        console.error(err);
+      });
   },
   
   DeleteMediaStream: function(streamPtr) {
@@ -87,35 +89,36 @@ var UnityWebRTCMediaStream = {
     if (!uwcom_existsCheck(trackPtr, 'MediaStreamAddTrack', 'track')) return;
     var stream = UWManaged[streamPtr];
     var track = UWManaged[trackPtr];
-    console.log('videoTrack:' + track.id);
-    try {
-      console.log('MediaStreamAddTrack:' + streamPtr + ':' + trackPtr);
-      stream.addTrack(track);
-      var video = document.createElement('video');
-      video.id = 'video_' + track.managePtr.toString();
-      video.muted = true;
-      //video.style.display = 'none';
-      video.srcObject = stream;
-      document.body.appendChild(video);
-      video.style.width = '300px';
-      video.style.height = '200px';
-      video.style.position = 'absolute';
-      video.style.left = video.style.top = 0;
-      uwcom_remoteVideoTracks[track.managePtr] = {
-        track: track,
-        video: video,
-        playing: false
-      };
-      video.onplaying = function(){
-        uwcom_remoteVideoTracks[track.managePtr].playing = true;
-      }
-      video.play();
-      Module.dynCall_vii(uwevt_MSOnAddTrack, stream.managePtr, track.managePtr);
-      return true;
-    } catch (err) {
-        console.log('MediaStreamAddTrack: ' + err.message);
-      return false;
-    }
+    stream.addTrack(track);
+    Module.dynCall_vii(uwevt_MSOnAddTrack, stream.managePtr, track.managePtr);
+    // try {
+    //   console.log('MediaStreamAddTrack:' + streamPtr + ':' + trackPtr);
+    //   stream.addTrack(track);
+    //   var video = document.createElement('video');
+    //   video.id = 'video_' + track.managePtr.toString();
+    //   video.muted = true;
+    //   //video.style.display = 'none';
+    //   video.srcObject = stream;
+    //   document.body.appendChild(video);
+    //   video.style.width = '300px';
+    //   video.style.height = '200px';
+    //   video.style.position = 'absolute';
+    //   video.style.left = video.style.top = 0;
+    //   uwcom_remoteVideoTracks[track.managePtr] = {
+    //     track: track,
+    //     video: video,
+    //     playing: false
+    //   };
+    //   video.onplaying = function(){
+    //     uwcom_remoteVideoTracks[track.managePtr].playing = true;
+    //   }
+    //   video.play();
+    //   Module.dynCall_vii(uwevt_MSOnAddTrack, stream.managePtr, track.managePtr);
+    //   return true;
+    // } catch (err) {
+    //     console.log('MediaStreamAddTrack: ' + err.message);
+    //   return false;
+    // }
   },
 
   MediaStreamRemoveTrack: function (streamPtr, trackPtr) {

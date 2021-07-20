@@ -47,7 +47,7 @@ var UnityWebRTCContext = {
   },
 
   ContextDeletePeerConnection: function (contextPtr, peerPtr) {
-    if (!uwcom_existsCheck(contextPtr, 'ContextDeletePeerConnection', 'context')) return;
+    //if (!uwcom_existsCheck(contextPtr, 'ContextDeletePeerConnection', 'context')) return;
     if (!uwcom_existsCheck(peerPtr, 'ContextDeletePeerConnection', 'peer')) return;
     var peer = UWManaged[peerPtr];
     if (peer.readyState !== 'closed' || peer.signalingState !== 'closed')
@@ -88,24 +88,35 @@ var UnityWebRTCContext = {
   },
 
   ContextDeleteDataChannel: function (contextPtr, dataChannelPtr) {
-    if (!uwcom_existsCheck(contextPtr, 'ContextDeleteDataChannel', 'context')) return;
+    //if (!uwcom_existsCheck(contextPtr, 'ContextDeleteDataChannel', 'context')) return;
     if (!uwcom_existsCheck(dataChannelPtr, 'ContextDeleteDataChannel', 'dataChannel')) return;
     delete UWManaged[dataChannelPtr];
   },
 
-  ContextCreateMediaStream: function (contextPtr) {
+  ContextCreateMediaStream: function (contextPtr, label) {
     if (!uwcom_existsCheck(contextPtr, 'ContextCreateMediaStream', 'context')) return;
     return _CreateMediaStream();
   },
 
   ContextDeleteMediaStream: function (contextPtr, streamPtr) {
-    if (!uwcom_existsCheck(contextPtr, 'ContextDeleteMediaStream', 'context')) return;
+    //if (!uwcom_existsCheck(contextPtr, 'ContextDeleteMediaStream', 'context')) return;
     if (!uwcom_existsCheck(streamPtr, 'ContextDeleteMediaStream', 'stream')) return;
     _DeleteMediaStream(streamPtr);
   },
 
   ContextRegisterMediaStreamObserver: function (contextPtr, streamPtr) {
+    if (!uwcom_existsCheck(contextPtr, 'MediaStreamRegisterOnAddTrack', 'context')) return;
+    if (!uwcom_existsCheck(streamPtr, 'MediaStreamRegisterOnAddTrack', 'stream')) return;
     
+    var stream = UWManaged[streamPtr];
+    stream.onaddtrack = (function(evt) {
+      uwcom_addManageObj(evt.track);
+      Module.dynCall_vii(uwevt_MSOnAddTrack, stream.managePtr, evt.track.managePtr);
+    });
+    stream.onremovetrack = (function(evt) {
+      if (!uwcom_existsCheck(evt.track.managePtr, "stream.onremovetrack", "track")) return;
+      Module.dynCall_vii(uwevt_MSOnRemoveTrack, stream.managePtr, evt.track.managePtr);
+    });
   },
     
   ContextUnRegisterMediaStreamObserver: function (contextPtr, streamPtr) {
@@ -149,11 +160,33 @@ var UnityWebRTCContext = {
     track.stop();
   },
 
-  ContextDeleteMediaStreamTrack: function (trackPtr) {
+  ContextDeleteMediaStreamTrack: function (contextPtr, trackPtr) {
     if (!uwcom_existsCheck(trackPtr, 'ContextDeleteMediaStreamTrack', 'track')) return;
+    var track = UWManaged[trackPtr];
+
+    // Not sure how js garbage collection works, remove/disable/stop all attributes inside the track object?
+    if(track.kind === "video"){
+      if(uwcom_localVideoTracks[trackPtr]){
+        delete uwcom_localVideoTracks[trackPtr];
+      }
+
+      if(uwcom_remoteVideoTracks[trackPtr]){
+        uwcom_remoteVideoTracks[trackPtr].video.remove();
+        uwcom_remoteVideoTracks[trackPtr].track.stop();
+        delete uwcom_remoteVideoTracks[trackPtr];
+      }
+    }
     delete UWManaged[trackPtr];
   },
 
+  ContextRegisterAudioReceiveCallback: function (contextPtr, trackPtr, AudioTrackOnReceive){
+    
+  },
+
+  ContextUnregisterAudioReceiveCallback: function (contextPtr, trackPtr){
+    
+  },
+  
   // CreateVideoRenderer: function(contextPtr) {
 
   // },
@@ -163,7 +196,7 @@ var UnityWebRTCContext = {
   // },
 
   ContextDeleteStatsReport: function (contextPtr, reportPtr) {
-    if (!uwcom_existsCheck(contextPtr, 'ContextDeleteStatsReport', 'context')) return;
+    //if (!uwcom_existsCheck(contextPtr, 'ContextDeleteStatsReport', 'context')) return;
     if (!uwcom_existsCheck(reportPtr, 'ContextDeleteStatsReport', 'report')) return;
     delete UWManaged[reportPtr];
   },
@@ -178,7 +211,9 @@ var UnityWebRTCContext = {
 
   $UWContextGetCapabilities: function (senderReceiver, kindIdx) {
     var kind = UWMediaStreamTrackKind[kindIdx];
-    var capabilities = senderReceiver.getCapabilities(kind);
+    var capabilities = {codecs:[], headerExtensions: []};
+    const supportsSetCodecPreferences = window.RTCRtpTransceiver && 'setCodecPreferences' in window.RTCRtpTransceiver.prototype;
+    if(supportsSetCodecPreferences) capabilities = senderReceiver.getCapabilities(kind);
     var capabilitiesJson = JSON.stringify(capabilities);
     var capabilitiesJsonPtr = uwcom_strToPtr(capabilitiesJson);
     return capabilitiesJsonPtr;

@@ -34,7 +34,9 @@ namespace Unity.WebRTC.Samples
         [SerializeField] private Button buttonPeerConnection;
         [SerializeField] private Button buttonDataChannel;
         [SerializeField] private Button buttonMediaStream;
+        [SerializeField] private Button buttonAudio;
         [SerializeField] private Button buttonMultiPeers;
+        [SerializeField] private Button buttonMultiAudioRecv;
         [SerializeField] private Button buttonMultiVideoRecv;
         [SerializeField] private Button buttonMungeSDP;
         [SerializeField] private Button buttonStats;
@@ -43,6 +45,7 @@ namespace Unity.WebRTC.Samples
         [SerializeField] private Button buttonVideoReceive;
         [SerializeField] private Button buttonBandwidth;
         [SerializeField] private Button buttonPerfectNegotiation;
+        [SerializeField] private Button buttonWebGL;
 
         void Start()
         {
@@ -54,7 +57,9 @@ namespace Unity.WebRTC.Samples
             buttonPeerConnection.onClick.AddListener(OnPressedPeerConnectionButton);
             buttonDataChannel.onClick.AddListener(OnPressedDataChannelButton);
             buttonMediaStream.onClick.AddListener(OnPressedMediaStreamButton);
+            buttonAudio.onClick.AddListener(OnPressedAudioButton);
             buttonMultiPeers.onClick.AddListener(OnPressedMultiPeersButton);
+            buttonMultiAudioRecv.onClick.AddListener(OnPressedMultiAudioRecvButton);
             buttonMultiVideoRecv.onClick.AddListener(OnPressedMultiVideoRecvButton);
             buttonMungeSDP.onClick.AddListener(OnPressedMungeSDPButton);
             buttonStats.onClick.AddListener(OnPressedStatsButton);
@@ -63,6 +68,7 @@ namespace Unity.WebRTC.Samples
             buttonVideoReceive.onClick.AddListener(OnPressedVideoReceiveButton);
             buttonBandwidth.onClick.AddListener(OnPressedBandwidthButton);
             buttonPerfectNegotiation.onClick.AddListener(OnPressedPerfectNegotiationButton);
+            buttonWebGL.onClick.AddListener(OnPressedWebGLButton);
         }
 
         private void OnChangeHWCodec(bool enable)
@@ -87,9 +93,19 @@ namespace Unity.WebRTC.Samples
         {
             SceneManager.LoadScene("MediaStream", LoadSceneMode.Single);
         }
+
+        private void OnPressedAudioButton()
+        {
+            SceneManager.LoadScene("Audio", LoadSceneMode.Single);
+        }
+
         private void OnPressedMultiPeersButton()
         {
             SceneManager.LoadScene("MultiplePeerConnections", LoadSceneMode.Single);
+        }
+        private void OnPressedMultiAudioRecvButton()
+        {
+            SceneManager.LoadScene("MultiAudioReceive", LoadSceneMode.Single);
         }
         private void OnPressedMultiVideoRecvButton()
         {
@@ -122,6 +138,11 @@ namespace Unity.WebRTC.Samples
         private void OnPressedPerfectNegotiationButton()
         {
             SceneManager.LoadScene("PerfectNegotiation", LoadSceneMode.Single);
+        }
+
+        private void OnPressedWebGLButton()
+        {
+            SceneManager.LoadScene("WebGL", LoadSceneMode.Single);
         }
     }
 }

@@ -8,14 +8,6 @@ namespace Unity.WebRTC
     public delegate void DelegateOnAddTrack(MediaStreamTrackEvent e);
     public delegate void DelegateOnRemoveTrack(MediaStreamTrackEvent e);
 
-#if UNITY_WEBGL
-    public class MediaStreamConstraints
-    {
-        public bool audio = true;
-        public bool video = true;
-    }
-#endif
-
     public class MediaStream : IDisposable
     {
         private DelegateOnAddTrack onAddTrack;
@@ -23,8 +15,16 @@ namespace Unity.WebRTC
 
         private IntPtr self;
         private bool disposed;
+        private HashSet<MediaStreamTrack> cacheTracks = new HashSet<MediaStreamTrack>();
 
 #if UNITY_WEBGL
+        // TODO Use MediaTrackConstraints instead of booleans
+        public class MediaStreamConstraints
+        {
+            public bool audio = true;
+            public bool video = true;
+        }
+
         public void AddUserMedia(MediaStreamConstraints constraints)
         {
             NativeMethods.MediaStreamAddUserMedia(self, JsonUtility.ToJson(constraints));
@@ -32,7 +32,7 @@ namespace Unity.WebRTC
 #endif
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public string Id =>
             NativeMethods.MediaStreamGetID(GetSelfOrThrow()).AsAnsiStringWithFreeMem();
@@ -113,22 +113,18 @@ namespace Unity.WebRTC
 
         public bool AddTrack(MediaStreamTrack track)
         {
+            cacheTracks.Add(track);
             return NativeMethods.MediaStreamAddTrack(GetSelfOrThrow(), track.GetSelfOrThrow());
         }
         public bool RemoveTrack(MediaStreamTrack track)
         {
+            cacheTracks.Remove(track);
             return NativeMethods.MediaStreamRemoveTrack(GetSelfOrThrow(), track.GetSelfOrThrow());
         }
 
-#if !UNITY_WEBGL
         public MediaStream() : this(WebRTC.Context.CreateMediaStream(Guid.NewGuid().ToString()))
         {
         }
-#else
-        public MediaStream() : this(WebRTC.Context.CreateMediaStream())
-        {
-        }
-#endif
 
         internal IntPtr GetSelfOrThrow()
         {
@@ -149,41 +145,31 @@ namespace Unity.WebRTC
         }
 
         [AOT.MonoPInvokeCallback(typeof(DelegateNativeMediaStreamOnAddTrack))]
-        static void MediaStreamOnAddTrack(IntPtr ptr, IntPtr track)
+        static void MediaStreamOnAddTrack(IntPtr ptr, IntPtr trackPtr)
         {
-#if !UNITY_WEBGL
             WebRTC.Sync(ptr, () =>
             {
                 if (WebRTC.Table[ptr] is MediaStream stream)
                 {
-                    stream.onAddTrack?.Invoke(new MediaStreamTrackEvent(track));
+                    var e = new MediaStreamTrackEvent(trackPtr);
+                    stream.onAddTrack?.Invoke(e);
+                    stream.cacheTracks.Add(e.Track);
                 }
             });
-#else
-            if (WebRTC.Table[ptr] is MediaStream stream)
-            {
-                stream.onAddTrack?.Invoke(new MediaStreamTrackEvent(track));
-            }
-#endif
         }
 
         [AOT.MonoPInvokeCallback(typeof(DelegateNativeMediaStreamOnRemoveTrack))]
-        static void MediaStreamOnRemoveTrack(IntPtr ptr, IntPtr track)
+        static void MediaStreamOnRemoveTrack(IntPtr ptr, IntPtr trackPtr)
         {
-#if !UNITY_WEBGL
             WebRTC.Sync(ptr, () =>
             {
                 if (WebRTC.Table[ptr] is MediaStream stream)
                 {
-                    stream.onRemoveTrack?.Invoke(new MediaStreamTrackEvent(track));
+                    var e = new MediaStreamTrackEvent(trackPtr);
+                    stream.onRemoveTrack?.Invoke(e);
+                    stream.cacheTracks.Remove(e.Track);
                 }
             });
-#else
-            if (WebRTC.Table[ptr] is MediaStream stream)
-            {
-                stream.onRemoveTrack?.Invoke(new MediaStreamTrackEvent(track));
-            }
-#endif
         }
     }
 }

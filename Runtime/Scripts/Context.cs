@@ -17,14 +17,14 @@ namespace Unity.WebRTC
         private IntPtr renderFunction;
         private IntPtr textureUpdateFunction;
 
-        public static Context Create(int id = 0, EncoderType encoderType = EncoderType.Hardware)
+        public static Context Create(int id = 0, EncoderType encoderType = EncoderType.Hardware, bool forTest = false)
         {
             if (encoderType == EncoderType.Hardware && !NativeMethods.GetHardwareEncoderSupport())
             {
                 throw new ArgumentException("Hardware encoder is not supported");
             }
 
-            var ptr = NativeMethods.ContextCreate(id, encoderType);
+            var ptr = NativeMethods.ContextCreate(id, encoderType, forTest);
             return new Context(ptr, id);
         }
 
@@ -151,16 +151,7 @@ namespace Unity.WebRTC
 #if !UNITY_WEBGL
             return NativeMethods.ContextCreateDataChannel(self, ptr, label, ref options);
 #else
-            //TODO: Fix serialization for OptionalFields
-            JObject jObject = new JObject();
-            if (options.ordered.hasValue) jObject.Add("ordered", options.ordered.value);
-            if (options.maxRetransmits.hasValue) jObject.Add("maxRetransmits", options.maxRetransmits.value);
-            if (options.maxRetransmitTime.hasValue) jObject.Add("maxPacketLifeTime", options.maxRetransmitTime.value);
-            if (options.negotiated.hasValue) jObject.Add("negotiated", options.negotiated.value);
-            if (options.id.hasValue) jObject.Add("id", options.id.value);
-            if (!string.IsNullOrEmpty(options.protocol)) jObject.Add("protocol", options.protocol);
-
-            var optionsJson = jObject.ToString(Formatting.None);
+            var optionsJson = JsonUtility.ToJson(options);
             return NativeMethods.ContextCreateDataChannel(self, ptr, label, optionsJson);
 #endif
         }
@@ -170,17 +161,11 @@ namespace Unity.WebRTC
             NativeMethods.ContextDeleteDataChannel(self, ptr);
         }
 
-#if !UNITY_WEBGL
+
         public IntPtr CreateMediaStream(string label)
         {
             return NativeMethods.ContextCreateMediaStream(self, label);
         }
-#else
-        public IntPtr CreateMediaStream(string label="")
-        {
-            return NativeMethods.ContextCreateMediaStream(self);
-        }
-#endif
 
         public void DeleteMediaStream(MediaStream stream)
         {
@@ -205,6 +190,17 @@ namespace Unity.WebRTC
         public void MediaStreamRegisterOnRemoveTrack(MediaStream stream, DelegateNativeMediaStreamOnRemoveTrack callback)
         {
             NativeMethods.MediaStreamRegisterOnRemoveTrack(self, stream.GetSelfOrThrow(), callback);
+        }
+
+
+        public void AudioTrackRegisterAudioReceiveCallback(IntPtr track, DelegateAudioReceive callback)
+        {
+            NativeMethods.ContextRegisterAudioReceiveCallback(self, track, callback);
+        }
+
+        public void AudioTrackUnregisterAudioReceiveCallback(IntPtr track)
+        {
+            NativeMethods.ContextUnregisterAudioReceiveCallback(self, track);
         }
 
 #if !UNITY_WEBGL
@@ -282,25 +278,33 @@ namespace Unity.WebRTC
         }
 #endif
 
+#if !UNITY_WEBGL
         public void GetSenderCapabilities(TrackKind kind, out IntPtr capabilities)
         {
-#if !UNITY_WEBGL
             NativeMethods.ContextGetSenderCapabilities(self, kind, out capabilities);
-#else
-            var ptr = NativeMethods.ContextGetSenderCapabilities(self, kind);
-            capabilities = ptr;
-#endif
         }
+#else
+        public RTCRtpCapabilities GetSenderCapabilities(TrackKind kind)
+        {
+            string json = NativeMethods.ContextGetSenderCapabilities(self, kind);
 
+            return JsonConvert.DeserializeObject<RTCRtpCapabilities>(json);
+        }
+#endif
+
+#if !UNITY_WEBGL
         public void GetReceiverCapabilities(TrackKind kind, out IntPtr capabilities)
         {
-#if !UNITY_WEBGL
             NativeMethods.ContextGetReceiverCapabilities(self, kind, out capabilities);
-#else
-            var ptr = NativeMethods.ContextGetReceiverCapabilities(self, kind);
-            capabilities = ptr;
-#endif
         }
+#else
+        public RTCRtpCapabilities GetReceiverCapabilities(TrackKind kind)
+        {
+            string json = NativeMethods.ContextGetReceiverCapabilities(self, kind);
+
+            return JsonConvert.DeserializeObject<RTCRtpCapabilities>(json);
+        }
+#endif
 
 
 #if !UNITY_WEBGL

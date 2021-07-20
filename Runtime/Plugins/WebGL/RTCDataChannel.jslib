@@ -5,6 +5,19 @@ var UnityWebRTCDataChannel = {
     var label = Pointer_stringify(labelPtr);
     var optionsJson = Pointer_stringify(optionsJsonPtr);
     var options = JSON.parse(optionsJson);
+    
+    // Firefox doesn't like null values, so remove them.
+    if(options.ordered.hasValue) options.ordered = options.ordered.value;
+    else delete options.ordered;
+    if(options.maxRetransmits.hasValue) options.maxRetransmits = options.maxRetransmits.value;
+    else delete options.maxRetransmits;
+    if(options.maxRetransmitTime.hasValue) options.maxRetransmitTime = options.maxRetransmitTime.value;
+    else delete options.maxRetransmitTime;
+    if(options.negotiated.hasValue) options.negotiated = options.negotiated.value;
+    else delete options.negotiated;
+    if(options.id.hasValue) options.id = options.id.value;
+    else delete options.id;
+    
     var dataChannel = peer.createDataChannel(label, options);
     dataChannel.onmessage = function (evt) {
       if (typeof evt.data === 'string') {
@@ -16,9 +29,11 @@ var UnityWebRTCDataChannel = {
       }
     };
     dataChannel.onopen = function (evt) {
+      if (!uwcom_existsCheck(this.managePtr, "onopen", "dataChannel")) return;
       Module.dynCall_vi(uwevt_DCOnOpen, this.managePtr);
     };
     dataChannel.onclose = function (evt) {
+      if (!uwcom_existsCheck(this.managePtr, "onclose", "dataChannel")) return;
       Module.dynCall_vi(uwevt_DCOnClose, this.managePtr);
     };
     uwcom_addManageObj(dataChannel);

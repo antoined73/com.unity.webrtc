@@ -13,6 +13,9 @@ var UnityWebRTCCommon = {
       obj.managePtr = uwcom_managePtr;
       UWManaged[obj.managePtr] = obj;
     }
+    else if(!UWManaged[obj.managePtr]){
+      UWManaged[obj.managePtr] = obj;
+    }
   },
   $uwcom_strToPtr: function (str) {
     var len = lengthBytesUTF8(str) + 1;
@@ -93,23 +96,22 @@ var UnityWebRTCCommon = {
         if (stat.state === -1) return false;
       }
     }
+    stat.type = UWRTCStatsType.indexOf(stat.type);
+    return true;
   },
   $uwcom_statsSerialize: function (stats) {
-    var statsTypes = [];
     var statsJsons = [];
-    stats.forEach(function (stat) {
-      statsTypes.push(stat.type);
-      if (uwcom_fixStatEnumValue(stat))
-        statsJsons.push(JSON.stringify());
-    });
-    var statsDataJson = JSON.stringify([statsTypes, statsJsons]);
+    stats.forEach((function(stat) {
+      if (uwcom_fixStatEnumValue(stat)) statsJsons.push(stat);
+    }));
+    var statsDataJson = JSON.stringify(statsJsons);
     var statsDataJsonPtr = uwcom_strToPtr(statsDataJson);
     return statsDataJsonPtr;
   },
   $uwcom_existsCheck: function (ptr, funcName, typeName) {
     var obj = UWManaged[ptr];
     if (obj) return true;
-    console.error('[jslib] ' + funcName + ': Unmanaged ' + typeName);
+    console.error("[jslib] " + funcName + ": Unmanaged " + typeName + ". Ptr: " + ptr);
     return false;
   },
   $uwcom_getIdx: function (enum_, val) {
@@ -140,6 +142,7 @@ var UnityWebRTCCommon = {
   $uwevt_PCOnNegotiationNeeded: null,
   $uwevt_PCOnDataChannel: null,
   $uwevt_PCOnTrack: null,
+  $uwevt_PCOnRemoveTrack: null,
   $uwevt_MSOnAddTrack: null,
   $uwevt_MSOnRemoveTrack: null,
   $uwevt_DCOnTextMessage: null,
@@ -162,7 +165,9 @@ var UnityWebRTCCommon = {
   },
 
   StatsReportGetStatsList: function (reportPtr) {
-
+    if (!uwcom_existsCheck(reportPtr, "StatsReportGetStatsList", "report")) return;
+    var report = UWManaged[reportPtr];
+    return uwcom_statsSerialize(report);
   },
   StatsGetJson: function (statsPtr) {
 
@@ -187,6 +192,7 @@ autoAddDeps(UnityWebRTCCommon, '$uwevt_PCOnIceGatheringChange');
 autoAddDeps(UnityWebRTCCommon, '$uwevt_PCOnNegotiationNeeded');
 autoAddDeps(UnityWebRTCCommon, '$uwevt_PCOnDataChannel');
 autoAddDeps(UnityWebRTCCommon, '$uwevt_PCOnTrack');
+autoAddDeps(UnityWebRTCCommon, '$uwevt_PCOnRemoveTrack');
 autoAddDeps(UnityWebRTCCommon, '$uwevt_MSOnAddTrack');
 autoAddDeps(UnityWebRTCCommon, '$uwevt_MSOnRemoveTrack');
 autoAddDeps(UnityWebRTCCommon, '$uwevt_DCOnTextMessage');

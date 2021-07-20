@@ -37,10 +37,11 @@ var UnityWebRTCVideoStreamTrack = {
     //uwcom_addManageObj(stream);
     uwcom_addManageObj(track);
     uwcom_localVideoTracks[track.managePtr] = localVideoData;
-    console.log('localVideoData', track.managePtr);
+    //console.log('localVideoData', track.managePtr);
     return track.managePtr;
   },
 
+  // Not finished, don't delete.
   $readPixelsAsync: function (data) {
     var w = data.width;
     var h = data.height;
@@ -87,6 +88,7 @@ var UnityWebRTCVideoStreamTrack = {
     });
   },
 
+  // Not finished, don't delete.
   $clientWaitAsync: function (sync, flags, interval_ms) {
     return new Promise(function (resolve, reject) {
       var check = function() {
@@ -106,7 +108,7 @@ var UnityWebRTCVideoStreamTrack = {
   },
 
   RenderLocalVideotrack__deps: ['$readPixelsAsync', '$clientWaitAsync'],
-  RenderLocalVideotrack: function (trackPtr) {
+  RenderLocalVideotrack: function (trackPtr, needFlip) {
     var data = uwcom_localVideoTracks[trackPtr];
     // console.log('RenderLocalVideotrack', trackPtr, data);
     if (!data) return;
@@ -139,7 +141,15 @@ var UnityWebRTCVideoStreamTrack = {
 
       imgData.data.set(buffer);
       ctx.putImageData(imgData, 0, 0);
-
+      
+      // For now: Flip every time, since we want the correct image transfered over WebRTC
+      ctx.globalCompositeOperation = 'copy';
+      ctx.scale(1,-1);
+      ctx.translate(0, -imgData.height);
+      ctx.drawImage(cnv,0,0);
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.globalCompositeOperation = 'source-over';
+      
       GLctx.bindTexture(GLctx.TEXTURE_2D, dstTexture);
       GLctx.texImage2D(GLctx.TEXTURE_2D, 0, GLctx.RGBA, GLctx.RGBA, GLctx.UNSIGNED_BYTE, cnv);
       //GLctx.texSubImage2D(GLctx.TEXTURE_2D, 0, 0, 0, GLctx.RGBA, GLctx.UNSIGNED_BYTE, cnv);
@@ -149,7 +159,6 @@ var UnityWebRTCVideoStreamTrack = {
       GLctx.bindTexture(GLctx.TEXTURE_2D, null);
     }
   },
-
-
+  
 };
 mergeInto(LibraryManager.library, UnityWebRTCVideoStreamTrack);

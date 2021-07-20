@@ -7,8 +7,10 @@ var UnityWebRTCRtpSender = {
   SenderGetTrack: function (senderPtr) {
     if (!uwcom_existsCheck(senderPtr, 'SenderGetTrack', 'sender')) return;
     var sender = UWManaged[senderPtr];
-    uwcom_addManageObj(sender.track);
-    return sender.track.managePtr;
+    if(sender.track){
+      uwcom_addManageObj(sender.track);
+      return sender.track.managePtr;
+    }
   },
 
   SenderGetParameters: function (senderPtr) {
@@ -26,7 +28,7 @@ var UnityWebRTCRtpSender = {
     var parametersJson = Pointer_stringify(parametersJsonPtr);
     var parameters = JSON.parse(parametersJson);
     sender.setParameters(parameters).then(function () {
-      // TODO 非同期
+      // TODO Send correct RTCErrorType.
     });
   },
 

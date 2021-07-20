@@ -194,7 +194,6 @@ namespace Unity.WebRTC
         [AOT.MonoPInvokeCallback(typeof(DelegateNativeOnMessage))]
         static void DataChannelNativeOnMessage(IntPtr ptr, byte[] msg, int len)
         {
-#if !UNITY_WEBGL
             WebRTC.Sync(ptr, () =>
             {
                 if (WebRTC.Table[ptr] is RTCDataChannel channel)
@@ -202,30 +201,26 @@ namespace Unity.WebRTC
                     channel.onMessage?.Invoke(msg);
                 }
             });
-#else
-            if (WebRTC.Table[ptr] is RTCDataChannel channel)
-            {
-                channel.onMessage?.Invoke(msg);
-            }
-#endif
         }
 
 #if UNITY_WEBGL
         [AOT.MonoPInvokeCallback(typeof(DelegateNativeOnMessage))]
         static void DataChannelNativeOnTextMessage(IntPtr ptr, IntPtr msgPtr)
         {
-            if (WebRTC.Table[ptr] is RTCDataChannel channel)
+            WebRTC.Sync(ptr, () =>
             {
-                var msg = msgPtr.AsAnsiStringWithFreeMem();
-                channel.onTextMessage?.Invoke(msg);
-            }
+                if (WebRTC.Table[ptr] is RTCDataChannel channel)
+                {
+                    var msg = msgPtr.AsAnsiStringWithFreeMem();
+                    channel.onTextMessage?.Invoke(msg);
+                }
+            });
         }
 #endif
 
         [AOT.MonoPInvokeCallback(typeof(DelegateNativeOnOpen))]
         static void DataChannelNativeOnOpen(IntPtr ptr)
         {
-#if !UNITY_WEBGL
             WebRTC.Sync(ptr, () =>
             {
                 if (WebRTC.Table[ptr] is RTCDataChannel channel)
@@ -233,18 +228,11 @@ namespace Unity.WebRTC
                     channel.onOpen?.Invoke();
                 }
             });
-#else
-            if (WebRTC.Table[ptr] is RTCDataChannel channel)
-            {
-                channel.onOpen?.Invoke();
-            }
-#endif
         }
 
         [AOT.MonoPInvokeCallback(typeof(DelegateNativeOnClose))]
         static void DataChannelNativeOnClose(IntPtr ptr)
         {
-#if !UNITY_WEBGL
             WebRTC.Sync(ptr, () =>
             {
                 if (WebRTC.Table[ptr] is RTCDataChannel channel)
@@ -252,12 +240,6 @@ namespace Unity.WebRTC
                     channel.onClose?.Invoke();
                 }
             });
-#else
-            if (WebRTC.Table[ptr] is RTCDataChannel channel)
-            {
-                channel.onClose?.Invoke();
-            }
-#endif
         }
 
         internal RTCDataChannel(IntPtr ptr, RTCPeerConnection peerConnection)
