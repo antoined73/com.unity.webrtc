@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using UnityEngine;
@@ -8,7 +9,8 @@ namespace Unity.WebRTC
 {
     public class VideoStreamTrack : MediaStreamTrack
     {
-        internal static List<VideoStreamTrack> tracks = new List<VideoStreamTrack>();
+        internal static ConcurrentDictionary<IntPtr, WeakReference<VideoStreamTrack>> s_tracks =
+            new ConcurrentDictionary<IntPtr, WeakReference<VideoStreamTrack>>();
 
         bool m_needFlip = false;
         Texture m_sourceTexture;
@@ -135,7 +137,9 @@ namespace Unity.WebRTC
             WebRTC.ValidateGraphicsFormat(format);
             WebRTC.Context.SetVideoEncoderParameter(GetSelfOrThrow(), width, height, format, texturePtr);
             WebRTC.Context.InitializeEncoder(GetSelfOrThrow());
-            tracks.Add(this);
+
+            if(!s_tracks.TryAdd(self, new WeakReference<VideoStreamTrack>(this)))
+                throw new InvalidOperationException();
         }
 
         /// <summary>
@@ -144,7 +148,8 @@ namespace Unity.WebRTC
         /// <param name="sourceTrack"></param>
         internal VideoStreamTrack(IntPtr sourceTrack) : base(sourceTrack)
         {
-            tracks.Add(this);
+            if (!s_tracks.TryAdd(self, new WeakReference<VideoStreamTrack>(this)))
+                throw new InvalidOperationException();
         }
 
         public override void Dispose()
@@ -170,8 +175,7 @@ namespace Unity.WebRTC
                     UnityEngine.Object.DestroyImmediate(m_sourceTexture);
                 }
 
-                if(tracks.Contains(this))
-                    tracks.Remove(this);
+                s_tracks.TryRemove(self, out var value);
                 WebRTC.Context.DeleteMediaStreamTrack(self);
                 WebRTC.Table.Remove(self);
                 self = IntPtr.Zero;

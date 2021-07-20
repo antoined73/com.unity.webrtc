@@ -2,10 +2,14 @@
 #include "WebRTCPlugin.h"
 #include "Context.h"
 
+#include "UnityAudioEncoderFactory.h"
+#include "UnityAudioDecoderFactory.h"
+
 #if defined(UNITY_WIN) || defined(UNITY_LINUX)
 #include "Codec/NvCodec/NvEncoder.h"
 #endif
 
+#include "AudioTrackSinkAdapter.h"
 #include "DummyVideoEncoder.h"
 #include "MediaStreamObserver.h"
 #include "SetSessionDescriptionObserver.h"
@@ -32,14 +36,14 @@ namespace webrtc
         return nullptr;
     }
 
-    Context* ContextManager::CreateContext(int uid, UnityEncoderType encoderType)
+    Context* ContextManager::CreateContext(int uid, UnityEncoderType encoderType, bool forTest)
     {
         auto it = s_instance.m_contexts.find(uid);
         if (it != s_instance.m_contexts.end()) {
             DebugLog("Using already created context with ID %d", uid);
             return nullptr;
         }
-        auto ctx = new Context(uid, encoderType);
+        auto ctx = new Context(uid, encoderType, forTest);
         s_instance.m_contexts[uid].reset(ctx);
         return ctx;
     }
@@ -80,7 +84,7 @@ namespace webrtc
 #pragma region open an encode session
     uint32_t Context::s_encoderId = 0;
     uint32_t Context::GenerateUniqueId() { return s_encoderId++; }
-#pragma endregion
+#pragma endregion 
 
     bool Convert(const std::string& str, webrtc::PeerConnectionInterface::RTCConfiguration& config)
     {
@@ -116,12 +120,26 @@ namespace webrtc
             }
             config.servers.push_back(iceServer);
         }
-        int iceTransportPolicy = configJson["iceTransportPolicy"].asInt();
-        if(iceTransportPolicy != 0) config.type = static_cast<PeerConnectionInterface::IceTransportsType>(iceTransportPolicy);
+        Json::Value iceTransportPolicy = configJson["iceTransportPolicy"];
+        if(iceTransportPolicy["hasValue"].asBool())
+        {
+            config.type = static_cast<PeerConnectionInterface::IceTransportsType>(iceTransportPolicy["value"].asInt());
+        }
         Json::Value enableDtlsSrtp = configJson["enableDtlsSrtp"];
-        if (enableDtlsSrtp != 0) config.enable_dtls_srtp = enableDtlsSrtp.asBool();
-        config.ice_candidate_pool_size = configJson["iceCandidatePoolSize"].asInt();
-        config.bundle_policy = static_cast<PeerConnectionInterface::BundlePolicy>(configJson["bundlePolicy"].asInt());
+        if (enableDtlsSrtp["hasValue"].asBool())
+        {
+            config.enable_dtls_srtp = enableDtlsSrtp["value"].asBool();
+        }
+        Json::Value iceCandidatePoolSize = configJson["iceCandidatePoolSize"];
+        if (iceCandidatePoolSize["hasValue"].asBool())
+        {
+            config.ice_candidate_pool_size = iceCandidatePoolSize["value"].asInt();
+        }
+        Json::Value bundlePolicy = configJson["bundlePolicy"];
+        if (bundlePolicy["hasValue"].asBool())
+        {
+            config.bundle_policy = static_cast<PeerConnectionInterface::BundlePolicy>(bundlePolicy["value"].asInt());
+        }
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
         config.enable_implicit_rollback = true;
         return true;
@@ -162,7 +180,7 @@ namespace webrtc
     }
 #pragma warning(pop)
 
-    Context::Context(int uid, UnityEncoderType encoderType)
+    Context::Context(int uid, UnityEncoderType encoderType, bool forTest)
         : m_uid(uid)
         , m_encoderType(encoderType)
     {
@@ -173,7 +191,12 @@ namespace webrtc
 
         rtc::InitializeSSL();
 
-        m_audioDevice = new rtc::RefCountedObject<DummyAudioDevice>();
+        m_workerThread->Invoke<void>(
+            RTC_FROM_HERE,
+            [this]()
+            {
+                m_audioDevice = new rtc::RefCountedObject<DummyAudioDevice>();
+            });
 
         std::unique_ptr<webrtc::VideoEncoderFactory> videoEncoderFactory =
             m_encoderType == UnityEncoderType::UnityEncoderHardware ?
@@ -182,16 +205,19 @@ namespace webrtc
 
         std::unique_ptr<webrtc::VideoDecoderFactory> videoDecoderFactory =
             m_encoderType == UnityEncoderType::UnityEncoderHardware ?
-            std::make_unique<UnityVideoDecoderFactory>() :
+            std::make_unique<UnityVideoDecoderFactory>(forTest) :
             webrtc::CreateBuiltinVideoDecoderFactory();
+
+        rtc::scoped_refptr<AudioEncoderFactory> audioEncoderFactory = CreateAudioEncoderFactory();
+        rtc::scoped_refptr<AudioDecoderFactory>  audioDecoderFactory = CreateAudioDecoderFactory();
 
         m_peerConnectionFactory = CreatePeerConnectionFactory(
                                 m_workerThread.get(),
                                 m_workerThread.get(),
                                 m_signalingThread.get(),
                                 m_audioDevice,
-                                webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>(),
-                                webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>(),
+                                audioEncoderFactory,
+                                audioDecoderFactory,
                                 std::move(videoEncoderFactory),
                                 std::move(videoDecoderFactory),
                                 nullptr,
@@ -204,6 +230,12 @@ namespace webrtc
             std::lock_guard<std::mutex> lock(mutex);
 
             m_peerConnectionFactory = nullptr;
+            m_workerThread->Invoke<void>(
+                RTC_FROM_HERE,
+                [this]()
+                {
+                    m_audioDevice = nullptr;
+                });
             m_audioTrack = nullptr;
 
             m_mapIdAndEncoder.clear();
@@ -324,12 +356,10 @@ namespace webrtc
     void Context::RegisterMediaStreamObserver(webrtc::MediaStreamInterface* stream)
     {
         m_mapMediaStreamObserver[stream] = std::make_unique<MediaStreamObserver>(stream);
-        stream->RegisterObserver(m_mapMediaStreamObserver[stream].get());
     }
 
     void Context::UnRegisterMediaStreamObserver(webrtc::MediaStreamInterface* stream)
     {
-        stream->UnregisterObserver(m_mapMediaStreamObserver[stream].get());
         m_mapMediaStreamObserver.erase(stream);
     }
 
@@ -383,6 +413,33 @@ namespace webrtc
         {
             m_mediaSteamTrackList.erase(result);
         }
+    }
+
+    void Context::RegisterAudioReceiveCallback(
+        AudioTrackInterface* track, DelegateAudioReceive callback)
+    {
+        if (m_mapAudioTrackAndSink.find(track) != m_mapAudioTrackAndSink.end())
+        {
+            RTC_LOG(LS_WARNING) << "The callback is already registered.";
+            return;
+        }
+
+        std::unique_ptr<AudioTrackSinkAdapter> sink =
+            std::make_unique<AudioTrackSinkAdapter>(track, callback);
+
+        track->AddSink(sink.get());
+        m_mapAudioTrackAndSink[track] = std::move(sink);
+    }
+
+    void Context::UnregisterAudioReceiveCallback(
+        AudioTrackInterface* track)
+    {
+        if (m_mapAudioTrackAndSink.find(track) == m_mapAudioTrackAndSink.end())
+            return;
+
+        AudioTrackSinkInterface* sink = m_mapAudioTrackAndSink[track].get();
+        track->RemoveSink(sink);
+        m_mapAudioTrackAndSink.erase(track);
     }
 
     void Context::AddStatsReport(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report)
@@ -462,14 +519,14 @@ namespace webrtc
     UnityVideoRenderer* Context::CreateVideoRenderer()
     {
         auto rendererId = GenerateRendererId();
-        auto renderer = std::make_unique<UnityVideoRenderer>(rendererId);
-        m_mapVideoRenderer[rendererId] = std::move(renderer);
+        auto renderer = std::make_shared<UnityVideoRenderer>(rendererId);
+        m_mapVideoRenderer[rendererId] = renderer;
         return m_mapVideoRenderer[rendererId].get();
     }
 
-    UnityVideoRenderer* Context::GetVideoRenderer(uint32_t id)
+    std::shared_ptr<UnityVideoRenderer> Context::GetVideoRenderer(uint32_t id)
     {
-        return m_mapVideoRenderer[id].get();
+        return m_mapVideoRenderer[id];
     }
 
     void Context::DeleteVideoRenderer(UnityVideoRenderer* renderer)

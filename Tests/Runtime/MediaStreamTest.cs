@@ -13,8 +13,8 @@ namespace Unity.WebRTC.RuntimeTest
         [SetUp]
         public void SetUp()
         {
-            var value = TestHelper.HardwareCodecSupport();
-            WebRTC.Initialize(value ? EncoderType.Hardware : EncoderType.Software);
+            var type = TestHelper.HardwareCodecSupport() ? EncoderType.Hardware : EncoderType.Software;
+            WebRTC.Initialize(type: type, limitTextureSize:true, forTest:true);
         }
 
         [TearDown]
@@ -77,9 +77,22 @@ namespace Unity.WebRTC.RuntimeTest
             var stream = new MediaStream();
             var track = new VideoStreamTrack(rt);
 
+            bool isCalledOnAddTrack = false;
+            bool isCalledOnRemoveTrack = false;
+
+            stream.OnAddTrack = e =>
+            {
+                Assert.That(e.Track, Is.EqualTo(track));
+                isCalledOnAddTrack = true;
+            };
+            stream.OnRemoveTrack = e =>
+            {
+                Assert.That(e.Track, Is.EqualTo(track));
+                isCalledOnRemoveTrack = true;
+            };
+
             // wait for the end of the initialization for encoder on the render thread.
             yield return 0;
-
             Assert.That(track.Kind, Is.EqualTo(TrackKind.Video));
             Assert.That(stream.GetVideoTracks(), Has.Count.EqualTo(0));
             Assert.That(stream.AddTrack(track), Is.True);
@@ -87,9 +100,13 @@ namespace Unity.WebRTC.RuntimeTest
             Assert.That(stream.GetVideoTracks(), Has.All.Not.Null);
             Assert.That(stream.RemoveTrack(track), Is.True);
             Assert.That(stream.GetVideoTracks(), Has.Count.EqualTo(0));
+
+            var op1 = new WaitUntilWithTimeout(() => isCalledOnAddTrack, 5000);
+            yield return op1;
+            var op2 = new WaitUntilWithTimeout(() => isCalledOnRemoveTrack, 5000);
+            yield return op2;
+
             track.Dispose();
-            // wait for disposing video track.
-            yield return 0;
 
             stream.Dispose();
             Object.DestroyImmediate(rt);
@@ -157,6 +174,7 @@ namespace Unity.WebRTC.RuntimeTest
                 track.Dispose();
             }
             audioStream.Dispose();
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
@@ -184,12 +202,16 @@ namespace Unity.WebRTC.RuntimeTest
 
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
         [Timeout(5000)]
         public IEnumerator SenderGetStats()
         {
+            if (SystemInfo.processorType == "Apple M1")
+                Assert.Ignore("todo:: This test will hang up on Apple M1");
+
             var camObj = new GameObject("Camera");
             var cam = camObj.AddComponent<Camera>();
             var videoStream = cam.CaptureStream(1280, 720, 1000000);
@@ -228,6 +250,7 @@ namespace Unity.WebRTC.RuntimeTest
 
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
@@ -270,6 +293,7 @@ namespace Unity.WebRTC.RuntimeTest
 
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
@@ -312,6 +336,7 @@ namespace Unity.WebRTC.RuntimeTest
 
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         // todo::(kazuki) Test execution timed out on linux standalone
@@ -372,6 +397,7 @@ namespace Unity.WebRTC.RuntimeTest
             videoStream.Dispose();
             Object.DestroyImmediate(camObj);
             Object.DestroyImmediate(rt);
+            Object.DestroyImmediate(test.gameObject);
         }
 
         [UnityTest]
@@ -400,6 +426,7 @@ namespace Unity.WebRTC.RuntimeTest
             }
 
             stream.Dispose();
+            Object.DestroyImmediate(test.gameObject);
         }
     }
 }
